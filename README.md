@@ -1,3 +1,10 @@
+# This is forked from github.com/fastscience-ai <br />
+<br>
+Quality lectures were in the form of Jupyter notebook. <br>
+Here, I transformed from notebook to python program with some tuning.
+<br>
+Below is original Readme contents <br />
+
 ## install conda <br />
 Go to https://docs.conda.io/en/latest/miniconda.html <br />
 Then download proper installer for your OS  <br />
