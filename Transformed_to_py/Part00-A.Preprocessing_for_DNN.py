@@ -7,6 +7,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler,QuantileTransformer
+from sklearn.model_selection import train_test_split
 
 def main():
     ### Read file and get values as array
@@ -14,29 +15,63 @@ def main():
     pm25= get_array_from_file(var_name)
 
     ### Let's lookat the distribution of pm2.5 of junggu!
-    plot_histogram(pm25,var_name,tit='Distribution of '+var_name)
+    plot_histogram([pm25,],[var_name,],tit='Distribution of '+var_name)
+
+    ### Re-arange as 24 consecutive input,and next one as output
+    nt= pm25.shape[0]
+    nh_per_day= 24
+    pm25_x, pm25_y= [],[]
+    for k in range(nh_per_day,nt,1):
+        pm25_x.append(pm25[k-nh_per_day:k])
+        pm25_y.append(pm25[k])
+    pm25_x, pm25_y= np.asarray(pm25_x), np.asarray(pm25_y)
+    print(pm25_x.shape, pm25_y.shape)
+
+    ### Training set: 80% test set: 20% with shuffle
+    X_train, X_test, y_train, y_test = train_test_split(
+                                        pm25_x, pm25_y,
+                                        test_size=0.2,
+                                        random_state=1234, )  ## Shuffle=True in default
+    print('After split: ',X_train.shape, X_test.shape, y_train.shape, y_test.shape)
 
     ### Normalization
-    scaler= MinMaxScaler()
-    pm25_norm= scaler.fit_transform(pm25)
-    var_name1= var_name+'_MinMaxScaled'
-    plot_histogram(pm25_norm,var_name1,tit='Distribution of '+var_name1)
+    scaler, scaler_nm = MinMaxScaler(), 'MinMaxScaled'
+    #scaler, scaler_nm = QuantileTransformer(), 'QuantileTransformed'
 
-    scaler2= QuantileTransformer()  ## Default n_quantiles=1000
-    pm25_norm2= scaler2.fit_transform(pm25)
-    var_name2= var_name+'_QuantileTransformed'
-    plot_histogram(pm25_norm,var_name2,tit='Distribution of '+var_name2)
+    X_train= scaler.fit_transform(np.concatenate((X_train,y_train.reshape([-1,1])),axis=-1))
+    y_train= X_train[:,-1]
+    X_train= X_train[:,:-1]
+    X_test= scaler.transform(np.concatenate((X_test,y_test.reshape([-1,1])),axis=-1))
+    y_test= X_test[:,-1]
+    X_test= X_test[:,:-1]
+    var_name1= var_name+'_{}'.format(scaler_nm)
+    plot_histogram([y_train,y_test],['y_train','y_test'],tit='Distribution of '+var_name1)
 
+    ### Save data
+    outdir= '../../climate_ai_lecture_data/'
+    for fn,data in zip(['train_x','train_y','test_x','test_y'],
+                        [X_train, y_train, X_test, y_test]):
+        outfn= outdir+fn+'_{}.npy'.format(scaler_nm)
+        np.save(outfn, data)
+        print("Saved: ",outfn)
 
     return
 
-def plot_histogram(data,var_name,tit=''):
+def plot_histogram(data_list,var_name_list,tit=''):
+    fig= plt.figure()
+    fig.subplots_adjust(hspace=0.25)
+    fig.suptitle(tit)
+
+    nrow, ncol= 1,len(data_list)
+
     ### Draw histogram of the data
-    n, bins, patches = plt.hist(data, 50,facecolor='g', alpha=0.75)
-    plt.xlabel(var_name)
-    plt.ylabel('Count')
-    plt.title(tit)
-    plt.grid()
+    n_bins=50
+    for i in range(ncol):
+        ax1 = fig.add_subplot(nrow,ncol,i+1)
+        n, bins, patches = plt.hist(data_list[i], n_bins, alpha=0.75)
+        ax1.set_xlabel(var_name_list[i])
+        ax1.set_ylabel('Count')
+        ax1.grid()
     plt.show()
     return
 
