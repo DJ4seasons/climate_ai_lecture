@@ -9,11 +9,18 @@ print(tf.__version__)
 from tensorflow import keras
 from tensorflow.keras import layers
 import numpy as np
+import os.path
+from subprocess import run
 
 def main():
     ### Load data
-    scaler_nm= 'MinMaxScaled'  #'QuantileTransformed' #
+    scaler_nm= 'QuantileTransformed' #'MinMaxScaled'  #
     indir= '../../climate_ai_lecture_data/'
+    outdir= indir+'saved_model_dnn.{}/'.format(scaler_nm)
+    if not os.path.isdir(outdir):
+        run('mkdir {}'.format(outdir),shell=True)
+        print("Out-directory is made: "+outdir)
+
     data=[]
     for fn in ['train_x','train_y','test_x','test_y']:
         infn= indir+fn+'_{}.npy'.format(scaler_nm)
@@ -48,18 +55,36 @@ def main():
         print(example_result)
         print(np.shape(x_train[0:2]), np.shape(example_result))
 
+    ### Set check-point
+    save_weights = keras.callbacks.ModelCheckpoint(
+        filepath= outdir+"dnn_4layers_weights.E{epoch:04d}.ckpt",
+        verbose=1,
+        save_weights_only=True,  ## (model.save_weights(filepath)) or (model.save(filepath))
+        period=25) #save_freq=5)
+    save_models = keras.callbacks.ModelCheckpoint(
+        filepath= outdir+"dnn_4layers_models.E{epoch:04d}.ckpt",
+        verbose=1,
+        save_weights_only=False,  ## (model.save_weights(filepath)) or (model.save(filepath))
+        period=100) #save_freq=5)
+
     ### Let's do training with model.fit
-    EPOCHS = 100
-    history = dnn.fit(x_train, y_train,epochs=EPOCHS, validation_split = 0.1, verbose=1)
+    EPOCHS = 200
+    history = dnn.fit(x_train, y_train, epochs=EPOCHS,
+        validation_split = 0.1, verbose=1,
+        callbacks = [save_weights,save_models])
+
+    #keras.models.save_model(dnn, indir+"saved_model_dnn/")
+    dnn.save(outdir)
 
     ### history.history is a dictionry
     for key, value in history.history.items():
         print("{}: {}".format(key, value[-5:]))
 
     ### Draw Errors' evolution by Epochs
-    pic1= plot_error_by_epoch(x=(history.epoch,'Epoch'),
+    fig1= plot_error_by_epoch(x=(history.epoch,'Epoch'),
         y=[(history.history['mse'],'Train Error'),(history.history['val_mse'],'Val. Err')]
     )
+    fig1.savefig(outdir+'Error_Evol.png')
     return
 
 def plot_error_by_epoch(x,y):
@@ -81,7 +106,7 @@ def plot_error_by_epoch(x,y):
     ax1.legend(loc='best')
 
     plt.show()
-    return
+    return fig
 
 if __name__=="__main__":
     main()
