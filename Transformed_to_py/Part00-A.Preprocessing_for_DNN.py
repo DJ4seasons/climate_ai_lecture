@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler,QuantileTransformer
 from sklearn.model_selection import train_test_split
+import joblib
 
 def main():
     ### Read file and get values as array
@@ -35,15 +36,17 @@ def main():
     print('After split: ',X_train.shape, X_test.shape, y_train.shape, y_test.shape)
 
     ### Normalization
-    scaler, scaler_nm = MinMaxScaler(), 'MinMaxScaled'
-    #scaler, scaler_nm = QuantileTransformer(), 'QuantileTransformed'
+    #scaler, scaler_nm = MinMaxScaler(), 'MinMaxScaled'
+    scaler, scaler_nm = QuantileTransformer(), 'QuantileTransformed'
 
-    X_train= scaler.fit_transform(np.concatenate((X_train,y_train.reshape([-1,1])),axis=-1))
-    y_train= X_train[:,-1]
-    X_train= X_train[:,:-1]
-    X_test= scaler.transform(np.concatenate((X_test,y_test.reshape([-1,1])),axis=-1))
-    y_test= X_test[:,-1]
-    X_test= X_test[:,:-1]
+    scaler.fit(X_train.reshape([-1,1]))  ## It accepts [n_samples, n_features], but we know that each features are homogeneous
+    xtr_shape= X_train.shape
+    X_train= scaler.transform(X_train.reshape([-1,1])).reshape(xtr_shape)
+    y_train= scaler.transform(y_train.reshape([-1,1]))
+    xte_shape= X_test.shape
+    X_test= scaler.transform(X_test.reshape([-1,1])).reshape(xte_shape)
+    y_test= scaler.transform(y_test.reshape([-1,1]))
+
     var_name1= var_name+'_{}'.format(scaler_nm)
     plot_histogram([y_train,y_test],['y_train','y_test'],tit='Distribution of '+var_name1)
 
@@ -54,6 +57,9 @@ def main():
         outfn= outdir+fn+'_{}.npy'.format(scaler_nm)
         np.save(outfn, data)
         print("Saved: ",outfn)
+
+    ### Save scaler
+    joblib.dump(scaler,outdir+'{}_params.joblib'.format(var_name1))
 
     return
 

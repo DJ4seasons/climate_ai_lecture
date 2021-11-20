@@ -5,12 +5,25 @@ import tensorflow as tf
 print(tf.__version__)
 """
 
+import sys
+import os.path
+import numpy as np
+from subprocess import run
 #import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-import numpy as np
-import os.path
-from subprocess import run
+
+def fc():
+    model = keras.Sequential([
+    layers.Dense(64, activation='relu', input_shape=[24]),
+    layers.Dense(128, activation='relu'),
+    layers.Dense(256, activation='relu'),
+    layers.Dense(516, activation='sigmoid'),
+    layers.Dropout(0.5),
+    layers.Dense(1)
+    ])
+    optimizer = keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    return model,optimizer
 
 def main():
     ### Load data
@@ -30,15 +43,7 @@ def main():
     x_train, y_train, x_test, y_test = data
 
     ### Build a DNN model
-    dnn = keras.Sequential([
-        layers.Dense(64, activation='relu', input_shape=[24]),
-        layers.Dense(128, activation='relu'),
-        layers.Dense(256, activation='relu'),
-        layers.Dense(516, activation='sigmoid'),
-        layers.Dropout(0.5),
-        layers.Dense(1)
-        ])
-    optimizer = keras.optimizers.Adam(learning_rate=0.0005, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    dnn, optimizer= fc()
 
     ### Once the model is created, you can config the model with losses and metrics
     ### with model.compile(),
@@ -97,11 +102,13 @@ def plot_error_by_epoch(x,y):
     ### Plot the data
     ax1 = fig.add_subplot(1,1,1)
     xdata,xlabel= x
+    ymax=[]
     for (ydata,ylabel) in y:
         ax1.plot(xdata,ydata,label=ylabel)
-
+        ymax.append(max(ydata[-10:]))
+    ymax= max(ymax)*3
     ax1.set_xlabel(xlabel)
-    ax1.set_ylim([0,0.002])
+    ax1.set_ylim([0,ymax])
     ax1.grid()
     ax1.legend(loc='best')
 
