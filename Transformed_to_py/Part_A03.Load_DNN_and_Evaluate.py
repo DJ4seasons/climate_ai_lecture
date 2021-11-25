@@ -49,7 +49,7 @@ def main():
     ## Load checkpoint and predict
     dnn2.load_weights(fn_header+".ckpt")
     loss, mse = dnn2.evaluate(x_test, y_test, verbose =2)
-    y_pred= dnn2.predict(x_test).squeeze()
+    y_pred= dnn2.predict(x_test) #.squeeze()
     print(type(y_pred), y_pred.shape, y_test.shape)
 
     ## De-normalize
@@ -60,33 +60,66 @@ def main():
 
     print("MSE of testset: {:5.2f} ug/m^3".format(scaler.inverse_transform([[mse]])[0,0])) ## [[val]] represents shape of (1,1)
 
-    sys.exit()
-    ### Draw Errors' evolution by Epochs
-    fig1= plot_error_by_epoch(x=(history.epoch,'Epoch'),
-        y=[(history.history['mse'],'Train Error'),(history.history['val_mse'],'Val. Err')]
-    )
-    fig1.savefig(outdir+'Error_Evol.png')
+    y_test_denorm= scaler.inverse_transform(y_test)
+    y_pred= scaler.inverse_transform(y_pred)
+
+    ### Check predictied results with plots
+    fig1= plot_pred_vs_true(y_test_denorm, y_pred)
+    fig1.savefig(outdir+'pred_vs_true.png')
+
+    ### This time, loading saved model and train a little more
+    tgt_epoch2= 100
+    fn_header= outdir+'dnn_4layers_models.E{:04d}'.format(tgt_epoch2)
+    ## Load checkpoint and predict
+    #dnn3.load_model(fn_header+".ckpt")
+    dnn3= keras.models.load_model(fn_header+".ckpt")
+
+    ## Train further!
+    history2 = dnn3.fit(x_train, y_train, epochs=tgt_epoch-tgt_epoch2,
+                 validation_split = 0.1, verbose=1)
+
+    loss,  mse = dnn3.evaluate(x_test, y_test, verbose=2)
+    y_pred2= dnn3.predict(x_test) #.squeeze()
+    print(type(y_pred2), y_pred2.shape, y_test.shape)
+
+    ## De-normalize
+    print("MSE of testset: {:5.2f} ug/m^3".format(scaler.inverse_transform([[mse]])[0,0])) ## [[val]] represents shape of (1,1)
+
+    y_pred2= scaler.inverse_transform(y_pred2)
+
+    ### Check predictied results with plots
+    fig2= plot_pred_vs_true(y_test_denorm, y_pred2)
+    fig2.savefig(outdir+'pred_vs_true.v2.png')
+
     return
 
-def plot_error_by_epoch(x,y):
+def plot_pred_vs_true(y_test,y_pred):
     import matplotlib.pyplot as plt
     fig= plt.figure()
+    fig.set_size_inches(8.5,5)    # Physical page size in inches, (lx,ly)
     #fig.subplots_adjust(hspace=0.25)
-    fig.suptitle('Error by Epoch')
-    #nrow, ncol= 1,1
+    fig.suptitle('Prediction vs. True',fontsize=16)
+    nrow, ncol= 1,2
 
     ### Plot the data
-    ax1 = fig.add_subplot(1,1,1)
-    xdata,xlabel= x
-    ymax=[]
-    for (ydata,ylabel) in y:
-        ax1.plot(xdata,ydata,label=ylabel)
-        ymax.append(max(ydata[-10:]))
-    ymax= max(ymax)*3
-    ax1.set_xlabel(xlabel)
-    ax1.set_ylim([0,ymax])
+    ax1 = fig.add_subplot(nrow,ncol,1)
+    ax1.scatter(y_test,y_pred)
+    xlim,ylim= ax1.get_xlim(), ax1.get_ylim()
+    amax= max(xlim[1],ylim[1])
+    xr= np.linspace(0,amax,100)
+    ax1.plot(xr,xr,c='0.6',ls='--',lw=2.5)
+    ax1.set_xlabel("True Values")
+    ax1.set_ylabel("Predictions")
     ax1.grid()
-    ax1.legend(loc='best')
+
+    ax2 = fig.add_subplot(nrow,ncol,2)
+    ax2.hist(y_pred-y_test,bins=25)
+    ax2.yaxis.tick_right()
+    ax2.set_xlabel('Prediction Error')
+    ax2.set_ylabel('Count',rotation=-90,va='bottom')
+    ax2.yaxis.set_label_position("right")
+
+    ax2.grid()
 
     plt.show()
     return fig
