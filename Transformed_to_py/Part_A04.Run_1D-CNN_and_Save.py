@@ -14,25 +14,29 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 def fc():
+    #make 1d-CNN
+    #filter: the dimensionality of the output space
+    #.      (i.e. the number of output filters in the convolution)
+    #kernel_size: specifying the length of the 1D convolution window.
+    #strides: Specifying the stride length of the convolution.
     model = keras.Sequential([
-    layers.Dense(64, activation='relu', input_shape=[24]),
-    layers.Dense(128, activation='relu'),
-    layers.Dense(256, activation='relu'),
-    layers.Dense(516, activation='sigmoid'),
-    layers.Dropout(0.5),
-    layers.Dense(1)
-    ])
-    optimizer = keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
-    return model,optimizer
+        layers.Conv1D(filters=64, kernel_size=3, strides=1, activation='relu', input_shape=(24,1)),
+        layers.Conv1D(filters=128, kernel_size=5, strides=1, activation='relu'),
+        layers.Conv1D(filters=256, kernel_size=10, strides=1, activation='sigmoid'),
+        layers.MaxPooling1D(pool_size=2),
+        layers.Flatten(),
+        layers.Dropout(0.5),
+        layers.Dense(1)
+        ])
+
+    optimizer = keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    model_name= '1d-cnn_3layers'
+    return model,optimizer,model_name
 
 def main():
     ### Load data
     scaler_nm= 'MinMaxScaled'  #'QuantileTransformed' #
     indir= '../../climate_ai_lecture_data/'
-    outdir= indir+'saved_model_dnn.{}/'.format(scaler_nm)
-    if not os.path.isdir(outdir):
-        run('mkdir {}'.format(outdir),shell=True)
-        print("Out-directory is made: "+outdir)
 
     data=[]
     for fn in ['train_x','train_y','test_x','test_y']:
@@ -41,45 +45,59 @@ def main():
         print("Loaded: ",fn, data[-1].shape)
 
     x_train, y_train, x_test, y_test = data
+    ## Make x-data 3D
+    x_train = np.expand_dims(x_train, axis=2)
+    x_test = np.expand_dims(x_test, axis=2)
+    print(np.shape(x_train), np.shape(y_train), np.shape(x_test), np.shape(y_test))
 
-    ### Build a DNN model
-    dnn, optimizer= fc()
+    ### Build a CNN model
+    cnn, optimizer, model_name= fc()
+    outdir= indir+'saved_model.{}.{}/'.format(model_name,scaler_nm)
+    if not os.path.isdir(outdir):
+        run('mkdir {}'.format(outdir),shell=True)
+        print("Out-directory is made: "+outdir)
 
     ### Once the model is created, you can config the model with losses and metrics
     ### with model.compile(),
     ### train the model with model.fit(),
     ### or use the model to do prediction with model.predict().
-    dnn.compile(loss='mse', optimizer=optimizer, metrics=['mse'])
-    print(dnn.summary())
+    cnn.compile(loss='mse', optimizer=optimizer, metrics=['mse'])
+    print(cnn.summary())
 
     ### Let's do whether model works okay
     test=True
     if test:
         example_batch = x_train[0:2]
-        example_result = dnn.predict(example_batch)
+        example_result = cnn.predict(example_batch)
         print(example_result)
         print(np.shape(x_train[0:2]), np.shape(example_result))
 
     ### Set check-point
+    EPOCHS = 500
+    BATCH_SIZE = 36
+    STEPS_PER_EPOCH = y_train.shape[0] // BATCH_SIZE
+    PERIOD_W, PERIOD_M = 100,250
+    print(STEPS_PER_EPOCH)
+
     save_weights = keras.callbacks.ModelCheckpoint(
-        filepath= outdir+"dnn_4layers_weights.E{epoch:04d}.ckpt",
+        filepath= outdir+model_name+"_weights.E{epoch:04d}.ckpt",
         verbose=1,
         save_weights_only=True,  ## (model.save_weights(filepath)) or (model.save(filepath))
-        period=25) #save_freq=5)
+        save_freq= int(PERIOD_W * STEPS_PER_EPOCH))
     save_models = keras.callbacks.ModelCheckpoint(
-        filepath= outdir+"dnn_4layers_models.E{epoch:04d}.ckpt",
+        filepath= outdir+model_name+"_models.E{epoch:04d}.ckpt",
         verbose=1,
         save_weights_only=False,  ## (model.save_weights(filepath)) or (model.save(filepath))
-        period=100) #save_freq=5)
+        save_freq= int(PERIOD_M * STEPS_PER_EPOCH))
 
     ### Let's do training with model.fit
-    EPOCHS = 200
-    history = dnn.fit(x_train, y_train, epochs=EPOCHS,
+    history = cnn.fit(x_train, y_train, epochs=EPOCHS,
         validation_split = 0.1, verbose=1,
+        batch_size=BATCH_SIZE, steps_per_epoch=STEPS_PER_EPOCH,
         callbacks = [save_weights,save_models])
 
-    #keras.models.save_model(dnn, indir+"saved_model_dnn/")
-    dnn.save(outdir)
+    #keras.models.save_model(cnn, indir+"saved_model_cnn/")
+    #cnn.save(outdir)  ## Skip since "save_models" are already set
 
     ### history.history is a dictionry
     for key, value in history.history.items():
@@ -89,7 +107,7 @@ def main():
     fig1= plot_error_by_epoch(x=(history.epoch,'Epoch'),
         y=[(history.history['mse'],'Train Error'),(history.history['val_mse'],'Val. Err')]
     )
-    fig1.savefig(outdir+'Error_Evol.png')
+    fig1.savefig(outdir+'{}_Error_Evol.png'.formt(model_name))
     return
 
 def plot_error_by_epoch(x,y):
