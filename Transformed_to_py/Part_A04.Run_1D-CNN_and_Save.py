@@ -73,26 +73,27 @@ def main():
         print(np.shape(x_train[0:2]), np.shape(example_result))
 
     ### Set check-point
-    EPOCHS = 500
     BATCH_SIZE = 36
-    STEPS_PER_EPOCH = y_train.shape[0] // BATCH_SIZE
-    PERIOD_W, PERIOD_M = 100,250
+    VAL_SPLIT= 0.1
+    STEPS_PER_EPOCH = int(y_train.shape[0]*(1-VAL_SPLIT) / BATCH_SIZE)
+    PERIOD_W, PERIOD_M = 20,100
+    EPOCHS = 200
     print(STEPS_PER_EPOCH)
 
     save_weights = keras.callbacks.ModelCheckpoint(
         filepath= outdir+model_name+"_weights.E{epoch:04d}.ckpt",
         verbose=1,
         save_weights_only=True,  ## (model.save_weights(filepath)) or (model.save(filepath))
-        save_freq= int(PERIOD_W * STEPS_PER_EPOCH))
+        save_freq= PERIOD_W * STEPS_PER_EPOCH)
     save_models = keras.callbacks.ModelCheckpoint(
         filepath= outdir+model_name+"_models.E{epoch:04d}.ckpt",
         verbose=1,
         save_weights_only=False,  ## (model.save_weights(filepath)) or (model.save(filepath))
-        save_freq= int(PERIOD_M * STEPS_PER_EPOCH))
+        save_freq= PERIOD_M * STEPS_PER_EPOCH)
 
     ### Let's do training with model.fit
     history = cnn.fit(x_train, y_train, epochs=EPOCHS,
-        validation_split = 0.1, verbose=1,
+        validation_split = VAL_SPLIT, verbose=1,
         batch_size=BATCH_SIZE, steps_per_epoch=STEPS_PER_EPOCH,
         callbacks = [save_weights,save_models])
 
