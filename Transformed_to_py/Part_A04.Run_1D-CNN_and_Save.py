@@ -73,7 +73,7 @@ def main():
         print(np.shape(x_train[0:2]), np.shape(example_result))
 
     ### Set check-point
-    BATCH_SIZE = 36
+    BATCH_SIZE = 32
     VAL_SPLIT= 0.1
     STEPS_PER_EPOCH = int(y_train.shape[0]*(1-VAL_SPLIT) / BATCH_SIZE)
     PERIOD_W, PERIOD_M = 20,100
@@ -104,14 +104,26 @@ def main():
     for key, value in history.history.items():
         print("{}: {}".format(key, value[-5:]))
 
+    ### Evaluate test data
+    test_error=[]
+    for ep in range(PERIOD_W, EPOCHS+1, PERIOD_W):
+        fn= outdir+model_name+"_weights.E{epoch:04d}.ckpt".format(epoch=ep)
+        cnn.load_weights(fn)
+        loss, mse = cnn.evaluate(x_test, y_test, verbose =2)
+        #y_pred= dnn2.predict(x_test)
+        test_error.append([ep,mse])
+    test_error= np.asarray(test_error)
+    test_error= [test_error[:,0], test_error[:,1]]
+
     ### Draw Errors' evolution by Epochs
     fig1= plot_error_by_epoch(x=(history.epoch,'Epoch'),
-        y=[(history.history['mse'],'Train Error'),(history.history['val_mse'],'Val. Err')]
+        y=[(history.history['mse'],'Train Error'),(history.history['val_mse'],'Val. Error')],
+        test_error= test_error
     )
-    fig1.savefig(outdir+'{}_Error_Evol.png'.formt(model_name))
+    fig1.savefig(outdir+'{}_Error_Evol.png'.format(model_name))
     return
 
-def plot_error_by_epoch(x,y):
+def plot_error_by_epoch(x,y,test_error=[]):
     import matplotlib.pyplot as plt
     fig= plt.figure()
     #fig.subplots_adjust(hspace=0.25)
@@ -121,11 +133,15 @@ def plot_error_by_epoch(x,y):
     ### Plot the data
     ax1 = fig.add_subplot(1,1,1)
     xdata,xlabel= x
+    if xdata[0]==0:
+        xdata= np.asarray(xdata)+1
     ymax=[]
     for (ydata,ylabel) in y:
         ax1.plot(xdata,ydata,label=ylabel)
         ymax.append(max(ydata[-10:]))
-    ymax= max(ymax)*3
+    if len(test_error)==2:
+        ax1.plot(test_error[0], test_error[1],c='0.4',marker='x',alpha=0.7,label='Test Error')
+    ymax= max(ymax)*2.5
     ax1.set_xlabel(xlabel)
     ax1.set_ylim([0,ymax])
     ax1.grid()
