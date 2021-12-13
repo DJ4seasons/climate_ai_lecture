@@ -75,8 +75,9 @@ def main():
     dnn3= keras.models.load_model(fn_header+".ckpt")
 
     ## Train further!
-    history2 = dnn3.fit(x_train, y_train, epochs=tgt_epoch-tgt_epoch2,
-                 validation_split = 0.1, verbose=1)
+    history2 = dnn3.fit(x_train, y_train,
+                initial_epoch=tgt_epoch2, epochs=tgt_epoch,
+                validation_split = 0.1, verbose=1)
 
     loss,  mse = dnn3.evaluate(x_test, y_test, verbose=2)
     y_pred2= dnn3.predict(x_test) #.squeeze()

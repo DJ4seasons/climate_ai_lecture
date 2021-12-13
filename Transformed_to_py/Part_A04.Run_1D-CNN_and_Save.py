@@ -123,7 +123,7 @@ def main():
     fig1.savefig(outdir+'{}_Error_Evol.png'.format(model_name))
     return
 
-def plot_error_by_epoch(x,y,test_error=[]):
+def plot_error_by_epoch(x,y,test_error=[],initial_epoch=0):
     import matplotlib.pyplot as plt
     fig= plt.figure()
     #fig.subplots_adjust(hspace=0.25)
@@ -133,7 +133,7 @@ def plot_error_by_epoch(x,y,test_error=[]):
     ### Plot the data
     ax1 = fig.add_subplot(1,1,1)
     xdata,xlabel= x
-    if xdata[0]==0:
+    if xdata[0]==initial_epoch:
         xdata= np.asarray(xdata)+1
     ymax=[]
     for (ydata,ylabel) in y:
